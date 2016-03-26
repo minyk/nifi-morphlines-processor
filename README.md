@@ -9,3 +9,7 @@ This is Kite morphline processor for Apache Nifi. Currently in the alpha stage.
 
 - Kite SDK Morphlines: http://kitesdk.org/docs/1.1.0/morphlines/
 - Apache Nifi: http://nifi.apache.org
+
+# License
+
+Apache 2.0 License

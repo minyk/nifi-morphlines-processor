@@ -51,7 +51,7 @@ import java.util.*;
 @SeeAlso({})
 @ReadsAttributes({@ReadsAttribute(attribute="", description="")})
 @WritesAttributes({@WritesAttribute(attribute="", description="")})
-public class MyProcessor extends AbstractProcessor {
+public class MorphlinesProcessor extends AbstractProcessor {
 
     private static Command morphline;
     private final Record record = new Record();
@@ -117,15 +117,15 @@ public class MyProcessor extends AbstractProcessor {
 
     @Override
     public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
-        FlowFile inputFlowFile = session.get();
-        if ( inputFlowFile == null ) {
+        FlowFile flowFile = session.get();
+        if ( flowFile == null ) {
             return;
         }
 
         getLogger().debug("morphlines processor triggered.");
 
-        final byte[] value =new byte[(int) inputFlowFile.getSize()];
-        session.read(inputFlowFile, new InputStreamCallback() {
+        final byte[] value =new byte[(int) flowFile.getSize()];
+        session.read(flowFile, new InputStreamCallback() {
             @Override
             public void process(InputStream in) throws IOException {
                 StreamUtils.fillBuffer(in, value);
@@ -138,8 +138,7 @@ public class MyProcessor extends AbstractProcessor {
 
         if(success) {
 
-            FlowFile outputFlowFile = session.create();
-            outputFlowFile = session.append(outputFlowFile, new OutputStreamCallback() {
+            flowFile = session.append(flowFile, new OutputStreamCallback() {
                 @Override
                 public void process(OutputStream out) throws IOException {
                     out.write(collector.getRecords().get(0).getFirstValue("value").toString().getBytes());
@@ -147,15 +146,14 @@ public class MyProcessor extends AbstractProcessor {
             });
 
             getLogger().debug("Move result to success connection.");
-            session.transfer(outputFlowFile, REL_SUCCESS);
+            session.transfer(flowFile, REL_SUCCESS);
         } else {
             getLogger().warn("Fail to process morphlines record.");
             getLogger().debug("Move result to success connection.");
-            session.transfer(session.penalize(inputFlowFile), REL_FAILURE);
+            session.transfer(session.penalize(flowFile), REL_FAILURE);
         }
 
         record.getFields().clear();
-        session.remove(inputFlowFile);
     }
 
     private static Command getMorphlinesCommand(final ProcessContext context) {

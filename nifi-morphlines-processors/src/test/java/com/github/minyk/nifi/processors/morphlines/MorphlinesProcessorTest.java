@@ -33,20 +33,20 @@ import java.util.Map;
 import static junit.framework.TestCase.assertEquals;
 
 
-public class MyProcessorTest {
+public class MorphlinesProcessorTest {
 
     private TestRunner testRunner;
     private URL data;
 
     @Before
     public void init() {
-        testRunner = TestRunners.newTestRunner(MyProcessor.class);
-        URL file = MyProcessorTest.class.getClassLoader().getResource("morphline_with_exception.conf");
-        testRunner.setProperty(MyProcessor.MORPHLINES_FILE,file.getPath());
-        testRunner.setProperty(MyProcessor.MORPHLINES_ID, "morphline1");
-        testRunner.setRelationshipUnavailable(MyProcessor.REL_FAILURE);
+        testRunner = TestRunners.newTestRunner(MorphlinesProcessor.class);
+        URL file = MorphlinesProcessorTest.class.getClassLoader().getResource("morphline_with_exception.conf");
+        testRunner.setProperty(MorphlinesProcessor.MORPHLINES_FILE,file.getPath());
+        testRunner.setProperty(MorphlinesProcessor.MORPHLINES_ID, "morphline1");
+        testRunner.setRelationshipUnavailable(MorphlinesProcessor.REL_FAILURE);
 
-        data = MyProcessorTest.class.getClassLoader().getResource("records.txt");
+        data = MorphlinesProcessorTest.class.getClassLoader().getResource("records.txt");
     }
 
     @Test
@@ -59,7 +59,7 @@ public class MyProcessorTest {
             testRunner.enqueue(inputStream, attributes);
             testRunner.run();
         }
-        List<MockFlowFile> result = testRunner.getFlowFilesForRelationship(MyProcessor.REL_SUCCESS);
+        List<MockFlowFile> result = testRunner.getFlowFilesForRelationship(MorphlinesProcessor.REL_SUCCESS);
 
         assertEquals(result.size(), 1);
     }

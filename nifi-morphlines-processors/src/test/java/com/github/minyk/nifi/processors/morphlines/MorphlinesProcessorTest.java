@@ -44,13 +44,13 @@ public class MorphlinesProcessorTest {
         URL file = MorphlinesProcessorTest.class.getClassLoader().getResource("morphline_with_exception.conf");
         testRunner.setProperty(MorphlinesProcessor.MORPHLINES_FILE,file.getPath());
         testRunner.setProperty(MorphlinesProcessor.MORPHLINES_ID, "morphline1");
-        testRunner.setRelationshipUnavailable(MorphlinesProcessor.REL_FAILURE);
+        //testRunner.setRelationshipUnavailable(MorphlinesProcessor.REL_FAILURE);
 
         data = MorphlinesProcessorTest.class.getClassLoader().getResource("records.txt");
     }
 
     @Test
-    public void testProcessor() throws IOException {
+    public void testProcessorSuccess() throws IOException {
         try (
                 InputStream inputStream = getClass().getResourceAsStream("/records.txt")
         ) {
@@ -61,7 +61,21 @@ public class MorphlinesProcessorTest {
         }
         List<MockFlowFile> result = testRunner.getFlowFilesForRelationship(MorphlinesProcessor.REL_SUCCESS);
 
-        assertEquals(result.size(), 1);
+        assertEquals(1, result.size());
     }
 
+    @Test
+    public void testProcessorFail() throws IOException {
+        try (
+                InputStream inputStream = getClass().getResourceAsStream("/failrecords.txt")
+        ) {
+            Map<String, String> attributes = new HashMap<>();
+            attributes.put(CoreAttributes.FILENAME.key(), "failrecords.txt");
+            testRunner.enqueue(inputStream, attributes);
+            testRunner.run();
+        }
+        List<MockFlowFile> result = testRunner.getFlowFilesForRelationship(MorphlinesProcessor.REL_FAILURE);
+
+        assertEquals(1, result.size());
+    }
 }

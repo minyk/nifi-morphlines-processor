@@ -18,17 +18,9 @@ package com.github.minyk.nifi.processors.morphlines;
 
 import com.google.common.base.Preconditions;
 import org.apache.nifi.components.PropertyDescriptor;
-import org.apache.nifi.components.PropertyValue;
 import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.logging.ProcessorLog;
 import org.apache.nifi.processor.*;
-import org.apache.nifi.annotation.behavior.ReadsAttribute;
-import org.apache.nifi.annotation.behavior.ReadsAttributes;
-import org.apache.nifi.annotation.behavior.WritesAttribute;
-import org.apache.nifi.annotation.behavior.WritesAttributes;
-import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
-import org.apache.nifi.annotation.documentation.SeeAlso;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.InputStreamCallback;
@@ -48,9 +40,6 @@ import java.util.*;
 
 @Tags({"kitesdk", "morphlines"})
 @CapabilityDescription("Provide a description")
-@SeeAlso({})
-@ReadsAttributes({@ReadsAttribute(attribute="", description="")})
-@WritesAttributes({@WritesAttribute(attribute="", description="")})
 public class MorphlinesProcessor extends AbstractProcessor {
 
     private static Command morphline;
@@ -71,16 +60,23 @@ public class MorphlinesProcessor extends AbstractProcessor {
             .addValidator(StandardValidators.FILE_EXISTS_VALIDATOR)
             .build();
 
+    public static final PropertyDescriptor MORPHLINES_OUTPUT_FIELD = new PropertyDescriptor
+            .Builder().name("Morphlines output field")
+            .description("Field name of output in Morphlines. Default is 'value'.")
+            .required(false)
+            .defaultValue("value")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
     public static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
-            .description("Example relationship")
+            .description("Relationship for success.")
             .build();
 
     public static final Relationship REL_FAILURE = new Relationship.Builder()
             .name("failure")
-            .description("Example relationship")
+            .description("Relationship for failure of morphlines.")
             .build();
-
 
     private List<PropertyDescriptor> descriptors;
 
@@ -91,6 +87,7 @@ public class MorphlinesProcessor extends AbstractProcessor {
         final List<PropertyDescriptor> descriptors = new ArrayList<PropertyDescriptor>();
         descriptors.add(MORPHLINES_FILE);
         descriptors.add(MORPHLINES_ID);
+        descriptors.add(MORPHLINES_OUTPUT_FIELD);
         this.descriptors = Collections.unmodifiableList(descriptors);
 
         final Set<Relationship> relationships = new HashSet<Relationship>();
@@ -110,10 +107,10 @@ public class MorphlinesProcessor extends AbstractProcessor {
         return descriptors;
     }
 
-    @OnScheduled
-    public void onScheduled(final ProcessContext context) {
-
-    }
+//    @OnScheduled
+//    public void onScheduled(final ProcessContext context) {
+//
+//    }
 
     @Override
     public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
@@ -129,24 +126,23 @@ public class MorphlinesProcessor extends AbstractProcessor {
             @Override
             public void process(InputStream in) throws IOException {
                 StreamUtils.fillBuffer(in, value);
+                record.put(Fields.ATTACHMENT_BODY, value);
+                collector.reset();
+                getMorphlinesCommand(context).process(record);
             }
         });
 
-        record.put(Fields.ATTACHMENT_BODY, value);
-        collector.reset();
-        boolean success = getMorphlinesCommand(context).process(record);
 
-        if(success) {
-
-            flowFile = session.append(flowFile, new OutputStreamCallback() {
+        if(collector.isSuccess()) {
+            FlowFile outputflowFile = session.append(flowFile, new OutputStreamCallback() {
                 @Override
                 public void process(OutputStream out) throws IOException {
-                    out.write(collector.getRecords().get(0).getFirstValue("value").toString().getBytes());
+                    out.write(collector.getRecords().get(0).getFirstValue(context.getProperty(MORPHLINES_OUTPUT_FIELD).toString()).toString().getBytes());
                 }
             });
+            getLogger().debug("Move result to success connection");
+            session.transfer(outputflowFile, REL_SUCCESS);
 
-            getLogger().debug("Move result to success connection.");
-            session.transfer(flowFile, REL_SUCCESS);
         } else {
             getLogger().warn("Fail to process morphlines record.");
             getLogger().debug("Move result to success connection.");
@@ -172,6 +168,8 @@ public class MorphlinesProcessor extends AbstractProcessor {
 
         private final List<Record> results = new ArrayList();
 
+        private boolean success = false;
+
         public List<Record> getRecords() {
             return results;
         }
@@ -193,8 +191,22 @@ public class MorphlinesProcessor extends AbstractProcessor {
         public boolean process(Record record) {
             Preconditions.checkNotNull(record);
             results.add(record);
+            if(record.getFirstValue("key").equals("exception")) {
+                this.success = false;
+            } else {
+                this.success = true;
+            }
             return true;
         }
 
+        public int getRecordCount() {
+            return results.size();
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
     }
+
 }
+
